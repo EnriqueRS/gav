@@ -126,28 +126,6 @@ public class ServicioWeb {
         return gson.toJson(mapaRespuesta);
     }
 
-    /**
-     * Retrieves representation of an instance of es.gav.pujador.servicioweb.ServicioWeb
-     *
-     * @return an instance of java.lang.String
-     */
-    @GET
-    @Produces("application/json")
-    public String getJson() {
-        //TODO return proper representation object
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * PUT method for updating or creating an instance of ServicioWeb
-     *
-     * @param content representation for the resource
-     */
-    @PUT
-    @Consumes("application/json")
-    public void putJson(String content) {
-    }
-
     //Métodos auxiliares
     /**
      * Realiza una puja sobre una obra de un usuario
