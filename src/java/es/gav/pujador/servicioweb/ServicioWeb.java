@@ -78,7 +78,7 @@ public class ServicioWeb {
     @Path("test")
     @Produces(MediaType.TEXT_PLAIN)
     public String test() {
-        return "WS ok2";
+        return "WS ok";
     }
 
     /**
