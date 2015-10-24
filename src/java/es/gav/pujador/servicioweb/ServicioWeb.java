@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
 import com.google.gson.internal.LinkedTreeMap;
 import com.google.gson.reflect.TypeToken;
+import com.google.gson.stream.JsonReader;
 import es.gav.controladores.FieldDataFieldEstadoFacade;
 import es.gav.controladores.FieldDataFieldMaximoPujadorFacade;
 import es.gav.controladores.FieldDataFieldMaximoPujadorIdFacade;
@@ -21,6 +22,8 @@ import es.gav.entidades.FieldDataFieldPvpPK;
 import es.gav.entidades.Node;
 import es.gav.entidades.Users;
 import es.gav.excepciones.PujadorExcepcion;
+import es.gav.pujador.auxiliar.Cifrador;
+import java.io.StringReader;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -31,7 +34,6 @@ import javax.ejb.EJB;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.UriInfo;
 import javax.ws.rs.Consumes;
-import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -86,8 +88,8 @@ public class ServicioWeb {
      *
      * @param peticionPuja - JSON que contiene el id del usuario pujador, el id de la obra y la cantidad pujada
      * @return - Devuelve un JSON con dos elementos, 
-     *          Estado: OK en caso de éxito; KO en caso de error
-     *          Mensaje: Texto identificativo del resultado obtenido
+     * Estado: OK en caso de éxito; KO en caso de error 
+     * Mensaje: Texto identificativo del resultado obtenido
      */
     @POST
     @Path("pujar")
@@ -98,17 +100,24 @@ public class ServicioWeb {
         String respuesta = new String();
         Map<String, String> mapaRespuesta = new HashMap<>();
         mapaRespuesta.put("Resultado", "KO");
+        Cifrador cifrador = Cifrador.getInstance();
         try {
+            //Descifrar petición
+            String peticionPujaDescifrado = cifrador.Descifrar(peticionPuja);
+            System.out.println("Petición: " + peticionPujaDescifrado);
             Type tipoMapa = new TypeToken<Map<String, Object>>() {
             }.getType();
             //Recoger datos de la petición
-            LinkedTreeMap<String, Object> mapaPeticion = gson.fromJson(peticionPuja, tipoMapa);
+            JsonReader jsonReader = new JsonReader(new StringReader(peticionPujaDescifrado));
+            jsonReader.setLenient(true);
+            LinkedTreeMap<String, Object> mapaPeticion = gson.fromJson(jsonReader, tipoMapa);
             Integer idUsuario = ((Double) mapaPeticion.get("usuario")).intValue();
+            String pass = mapaPeticion.get("contrasena").toString();
             Integer idObra = ((Double) mapaPeticion.get("obra")).intValue();
             Double cantidadPuja = (Double) mapaPeticion.get("cantidad");
-            respuesta = pujarObra(idUsuario, idObra, cantidadPuja);
+            respuesta = pujarObra(idUsuario, pass, idObra, cantidadPuja);
             mapaRespuesta.put("Resultado", "OK");
-        } catch (JsonParseException jpe) {
+        } catch (NullPointerException | JsonParseException jpe) {
             Logger.getLogger(ServicioWeb.class.getName()).log(Level.SEVERE, null, jpe);
             respuesta = "Error al recibir los datos: " + jpe.getLocalizedMessage();
         } catch (ClassCastException cce) {
@@ -122,19 +131,21 @@ public class ServicioWeb {
         } finally {
             mapaRespuesta.put("Mensaje", respuesta);
         }
-
-        return gson.toJson(mapaRespuesta);
+        String respuestaFinal = gson.toJson(mapaRespuesta);
+        System.out.println("Respuesta: " + respuestaFinal);
+        return cifrador.Cifrar(respuestaFinal);
     }
-
+    
     //Métodos auxiliares
     /**
      * Realiza una puja sobre una obra de un usuario
      *
      * @param idUsuario - ID del usuario que realiza la puja
+     * @param pass - Contraseña del usuario, se comprueba su autenticidad
      * @param idObra - ID de la obra a la que realiza la obra
      * @param cantidadPuja - Cantidad (en euros) que puja el usuario
      */
-    private String pujarObra(Integer idUsuario, Integer idObra, Double cantidadPuja)
+    private String pujarObra(Integer idUsuario, String pass, Integer idObra, Double cantidadPuja)
             throws PujadorExcepcion {
         //Recupera información de la obra y el usuario de la base de datos
         Node nodo = nodoC.find(idObra);
@@ -146,6 +157,10 @@ public class ServicioWeb {
 
         if (usuario == null) {
             throw new PujadorExcepcion("Usuario no encontrado");
+        } else {
+            if (!pass.equals(usuario.getPass())) {
+                throw new PujadorExcepcion("Contraseña incorrecta");
+            }
         }
 
         //Precio de venta al público
