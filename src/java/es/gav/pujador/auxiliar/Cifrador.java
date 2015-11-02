@@ -7,7 +7,7 @@ import javax.crypto.spec.SecretKeySpec;
 public class Cifrador {
     
     static Cifrador Instance;
-    static final String key = "hKdgFG47";
+    static final String key = [CLAVE_PRIVADA];
     private static final String algoritmo = "DES/ECB/NoPadding";
 
     /**
